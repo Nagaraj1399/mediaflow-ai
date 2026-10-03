@@ -15,6 +15,7 @@ import {
 import { SAMPLE_MEDIA_ITEMS, SampleMediaItem } from '../services/sampleMedia';
 import { analyzeMedia, uploadMedia, formatBytes, toggleDemoMode } from '../services/api';
 import { MediaAnalysis, MediaAsset, PageTab, ConfigStatus } from '../types/pipeline';
+import { SmartMediaViewer } from '../components/common/SmartMediaViewer';
 
 interface UploadAnalyzePageProps {
   onMediaReady: (asset: MediaAsset, analysis: MediaAnalysis) => void;
@@ -58,71 +59,42 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
     setActiveSamplePath(undefined);
     const previewUrl = URL.createObjectURL(file);
     const format = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const isVideo = file.type.startsWith('video/') || ['mp4', 'mov', 'webm'].includes(format);
+    const isVideo = file.type.startsWith('video/') || ['mp4', 'mov', 'webm', 'm4v'].includes(format);
+
+    // 1. Immediately set file preview so image/video renders instantly in 0ms!
+    const immediateFileInfo = {
+      name: file.name,
+      size: file.size,
+      type: file.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+      previewUrl,
+      dataUrl: undefined,
+      width: isVideo ? 1920 : 1200,
+      height: isVideo ? 1080 : 1200,
+      format,
+    };
+    setSelectedFile(immediateFileInfo);
 
     const reader = new FileReader();
     reader.onerror = () => {
-      setError('Unable to read selected file from your device.');
+      // Even if reader fails, immediate preview stays visible!
+      startUploadAndAnalysis(immediateFileInfo);
     };
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
-      if (!dataUrl) {
-        setError('Failed to extract data from selected file.');
-        return;
-      }
-
-      if (isVideo) {
-        const fileInfo = {
-          name: file.name,
-          size: file.size,
-          type: file.type || 'video/mp4',
-          previewUrl,
-          dataUrl,
-          width: 1920,
-          height: 1080,
-          format,
-        };
-        setSelectedFile(fileInfo);
-        startUploadAndAnalysis(fileInfo);
-      } else {
-        const img = new Image();
-        img.onload = () => {
-          const fileInfo = {
-            name: file.name,
-            size: file.size,
-            type: file.type || 'image/jpeg',
-            previewUrl,
-            dataUrl,
-            width: img.width || 1200,
-            height: img.height || 1200,
-            format,
-          };
-          setSelectedFile(fileInfo);
-          startUploadAndAnalysis(fileInfo);
-        };
-        img.onerror = () => {
-          const fileInfo = {
-            name: file.name,
-            size: file.size,
-            type: file.type || 'image/jpeg',
-            previewUrl,
-            dataUrl,
-            width: 1200,
-            height: 1200,
-            format,
-          };
-          setSelectedFile(fileInfo);
-          startUploadAndAnalysis(fileInfo);
-        };
-        img.src = dataUrl;
-      }
+      const updatedFileInfo = {
+        ...immediateFileInfo,
+        dataUrl,
+      };
+      setSelectedFile(updatedFileInfo);
+      startUploadAndAnalysis(updatedFileInfo);
     };
     reader.readAsDataURL(file);
   };
 
   const handleSelectSample = async (sample: SampleMediaItem) => {
     setError(null);
-    setActiveSamplePath(sample.url);
+    const backendPath = sample.localPath || sample.url;
+    setActiveSamplePath(backendPath);
     if (sample.suggestedPrompt) {
       setUserDirective(sample.suggestedPrompt);
     }
@@ -135,10 +107,11 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
       }
     }
 
+    const isVideo = sample.resourceType === 'video' || sample.format.toLowerCase() === 'mp4';
     const fileData = {
       name: sample.name,
       size: sample.bytes,
-      type: 'image/jpeg',
+      type: isVideo ? 'video/mp4' : 'image/jpeg',
       previewUrl: sample.url,
       dataUrl: undefined,
       width: sample.width,
@@ -146,7 +119,7 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
       format: sample.format,
     };
     setSelectedFile(fileData);
-    startUploadAndAnalysis(fileData, sample.url);
+    startUploadAndAnalysis(fileData, backendPath);
   };
 
   const handleEnableDemoAndUpload = async () => {
@@ -193,10 +166,16 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
 
       // 2. Run Gemini Semantic Analysis
       setIsAnalyzing(true);
+      const isVideo = fileInfo.type.includes('video') || ['mp4', 'mov', 'webm'].includes(fileInfo.format.toLowerCase());
+      // For large video files, avoid sending huge base64 payload to prevent timeouts
+      const safeBase64 = (isVideo && fileInfo.dataUrl && fileInfo.dataUrl.length > 2000000)
+        ? undefined
+        : fileInfo.dataUrl;
+
       const analysisRes = await analyzeMedia({
         mediaName: fileInfo.name,
-        mediaType: fileInfo.type.includes('video') ? 'video' : 'image',
-        base64Data: fileInfo.dataUrl,
+        mediaType: isVideo ? 'video' : 'image',
+        base64Data: safeBase64,
         mimeType: fileInfo.type,
         samplePath: pathToUse,
         userPrompt: userDirective || undefined,
@@ -339,7 +318,7 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3.5">
           {SAMPLE_MEDIA_ITEMS.map((sample) => (
             <div
               key={sample.id}
@@ -347,15 +326,24 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
               className="group cursor-pointer rounded-xl bg-slate-900/60 border border-slate-800 hover:border-blue-500/60 transition-all p-3 space-y-2.5 text-left"
             >
               <div className="relative aspect-square rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center">
-                <img
+                <SmartMediaViewer
                   src={sample.url}
                   alt={sample.name}
+                  fallbackSrc={sample.localPath}
+                  resourceType={sample.resourceType}
+                  format={sample.format}
+                  autoPlay={false}
+                  controls={false}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  referrerPolicy="no-referrer"
                 />
                 <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-slate-950/80 text-[9px] font-mono text-slate-300 border border-slate-800">
                   {sample.category.split('&')[0]}
                 </span>
+                {sample.resourceType === 'video' && (
+                  <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-blue-950/90 text-[9px] font-mono text-blue-300 border border-blue-800">
+                    VIDEO
+                  </span>
+                )}
               </div>
               <div>
                 <h4 className="text-xs font-semibold text-slate-200 group-hover:text-blue-400 transition-colors truncate">
@@ -480,11 +468,15 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
             {/* Media Preview & Metadata */}
             <div className="space-y-4">
               <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center p-2">
-                <img
+                <SmartMediaViewer
                   src={selectedFile.previewUrl}
                   alt={selectedFile.name}
+                  fallbackSrc={`/assets/images/${selectedFile.name}`}
+                  resourceType={selectedFile.type.includes('video') ? 'video' : 'image'}
+                  format={selectedFile.format}
+                  autoPlay={true}
+                  controls={true}
                   className="max-h-full max-w-full object-contain"
-                  referrerPolicy="no-referrer"
                 />
 
                 {/* Animated AI Scanning Line when analyzing */}
@@ -509,8 +501,8 @@ export const UploadAnalyzePage: React.FC<UploadAnalyzePageProps> = ({
                 </div>
                 <div className="flex items-center justify-between text-slate-400">
                   <span>Ingest Status:</span>
-                  <span className="text-emerald-400 font-semibold">
-                    {isUploading ? 'Uploading...' : 'Ready for Pipeline'}
+                  <span className={`font-semibold font-mono ${isUploading ? 'text-amber-400 animate-pulse' : isAnalyzing ? 'text-blue-400 animate-pulse' : analysis ? 'text-emerald-400' : 'text-slate-300'}`}>
+                    {isUploading ? 'Ingesting Media...' : isAnalyzing ? 'Gemini AI Vision...' : analysis ? 'Ready for Pipeline' : 'Loaded'}
                   </span>
                 </div>
               </div>

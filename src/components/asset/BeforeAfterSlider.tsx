@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { SlidersHorizontal, Sparkles, CheckCircle2, ArrowRight, ExternalLink, Copy, Check } from 'lucide-react';
 import { MediaAsset, ChannelVariant } from '../../types/pipeline';
 import { formatBytes } from '../../services/api';
+import { SmartMediaViewer } from '../common/SmartMediaViewer';
 
 interface BeforeAfterSliderProps {
   asset: MediaAsset;
@@ -141,12 +142,17 @@ export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({ asset, sel
           className="relative h-[480px] w-full cursor-ew-resize overflow-hidden flex items-center justify-center bg-slate-950"
         >
           {/* Base Layer: AFTER (Optimized Delivery) */}
-          <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-950">
-            <img
+          <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-950 pointer-events-none">
+            <SmartMediaViewer
               src={activeVariant.url}
               alt="Optimized Asset"
+              fallbackSrc={activeVariant.cloudinaryUrl}
+              format={activeVariant.format}
+              autoPlay={true}
+              controls={false}
+              muted={true}
+              loop={true}
               className="w-full h-full object-contain pointer-events-none filter drop-shadow-md"
-              referrerPolicy="no-referrer"
             />
             {/* After Tag */}
             <div className="absolute bottom-4 right-4 z-10 px-3 py-1.5 rounded-lg bg-slate-950/80 backdrop-blur-md border border-emerald-500/40 text-xs font-mono text-emerald-400 flex items-center gap-1.5">
@@ -157,18 +163,23 @@ export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({ asset, sel
 
           {/* Clip Layer: BEFORE (Original Raw Media) */}
           <div
-            className="absolute inset-0 h-full overflow-hidden flex items-center justify-center bg-slate-950"
+            className="absolute inset-0 h-full overflow-hidden flex items-center justify-center bg-slate-950 pointer-events-none"
             style={{ width: `${sliderPos}%` }}
           >
             <div
               className="absolute inset-0 flex items-center justify-center"
               style={{ width: containerRef.current ? `${containerRef.current.clientWidth}px` : '100%' }}
             >
-              <img
+              <SmartMediaViewer
                 src={asset.originalUrl}
                 alt="Original Asset"
+                resourceType={asset.resourceType}
+                format={asset.format}
+                autoPlay={true}
+                controls={false}
+                muted={true}
+                loop={true}
                 className="w-full h-full object-contain pointer-events-none filter contrast-95"
-                referrerPolicy="no-referrer"
               />
             </div>
             {/* Before Tag */}

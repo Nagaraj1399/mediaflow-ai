@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ChannelVariant } from '../../types/pipeline';
 import { formatBytes } from '../../services/api';
+import { SmartMediaViewer } from '../common/SmartMediaViewer';
 
 interface ChannelAssetCardProps {
   variant: ChannelVariant;
@@ -62,11 +63,14 @@ export const ChannelAssetCard: React.FC<ChannelAssetCardProps> = ({
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col justify-between hover:border-slate-700 transition-all group">
       {/* Media Preview Window */}
       <div className="relative aspect-video w-full bg-slate-950 flex items-center justify-center overflow-hidden p-3 border-b border-slate-800/80">
-        <img
+        <SmartMediaViewer
           src={variant.url}
           alt={variant.label}
+          fallbackSrc={variant.cloudinaryUrl}
+          format={variant.format}
+          autoPlay={false}
+          controls={true}
           className="max-h-full max-w-full object-contain filter group-hover:scale-[1.02] transition-transform duration-300"
-          referrerPolicy="no-referrer"
         />
 
         {/* Channel label overlay */}

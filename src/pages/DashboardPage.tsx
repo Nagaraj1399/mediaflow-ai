@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { MediaAsset, PipelineJob, PageTab, AnalyticsData } from '../types/pipeline';
 import { formatBytes } from '../services/api';
+import { SmartMediaViewer } from '../components/common/SmartMediaViewer';
 
 interface DashboardPageProps {
   onNavigate: (tab: PageTab) => void;
@@ -180,11 +181,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   className="group cursor-pointer rounded-xl bg-slate-950 border border-slate-800/90 hover:border-slate-700 transition-all p-3 space-y-3"
                 >
                   <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900 flex items-center justify-center">
-                    <img
+                    <SmartMediaViewer
                       src={asset.originalUrl}
                       alt={asset.name}
+                      fallbackSrc={`/assets/images/${asset.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`}
+                      resourceType={asset.resourceType}
+                      format={asset.format}
+                      autoPlay={false}
+                      controls={true}
                       className="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform"
-                      referrerPolicy="no-referrer"
                     />
                     <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-slate-950/80 text-[10px] font-mono text-slate-300 border border-slate-800">
                       {asset.category.split('&')[0]}

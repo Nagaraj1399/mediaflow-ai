@@ -17,6 +17,15 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '60mb' }));
 app.use(express.urlencoded({ extended: true, limit: '60mb' }));
 
+// Static file delivery for demo media assets across all environments
+app.use('/src/assets', express.static(path.resolve(__dirname, 'src/assets')));
+app.use('/assets/images', express.static(path.resolve(__dirname, 'public/assets/images')));
+app.use('/assets/images', express.static(path.resolve(__dirname, 'src/assets/images')));
+app.use('/assets', express.static(path.resolve(__dirname, 'public/assets')));
+app.use('/assets', express.static(path.resolve(__dirname, 'src/assets')));
+app.use('/public', express.static(path.resolve(__dirname, 'public')));
+app.use(express.static(path.resolve(__dirname, 'public')));
+
 // -------------------------------------------------------------
 // Cloudinary Configuration
 // -------------------------------------------------------------
@@ -239,8 +248,8 @@ const seededAsset: MediaAsset = {
   id: 'mediaflow/samples/aerodynamic_running_sneaker',
   publicId: 'mediaflow/samples/aerodynamic_running_sneaker',
   name: 'aerodynamic_running_sneaker.jpg',
-  originalUrl: '/src/assets/images/demo_running_sneaker_1790960293811.jpg',
-  optimizedUrl: '/src/assets/images/demo_running_sneaker_1790960293811.jpg',
+  originalUrl: '/assets/images/demo_running_sneaker_1790960293811.jpg',
+  optimizedUrl: '/assets/images/demo_running_sneaker_1790960293811.jpg',
   resourceType: 'image',
   format: 'jpg',
   width: 2048,
@@ -261,10 +270,16 @@ const seededAsset: MediaAsset = {
 mediaAssets.push(seededAsset);
 
 // Helper to construct Cloudinary transformation URL
-function buildCloudinaryTransformationUrl(publicId: string, transform: string, format = ''): string {
+function buildCloudinaryTransformationUrl(
+  publicId: string,
+  transform: string,
+  format = '',
+  resourceType: 'image' | 'video' = 'image'
+): string {
   const cleanTransform = transform.replace(/\s+/g, '');
   const fmt = format ? `.${format.toLowerCase()}` : '';
-  return `https://res.cloudinary.com/${cloudName || 'demo'}/image/upload/${cleanTransform}/${publicId}${fmt}`;
+  const rType = resourceType === 'video' ? 'video' : 'image';
+  return `https://res.cloudinary.com/${cloudName || 'demo'}/${rType}/upload/${cleanTransform}/${publicId}${fmt}`;
 }
 
 // -------------------------------------------------------------
@@ -616,10 +631,20 @@ Return strictly valid JSON matching the schema.
     let imageBase64 = base64Data;
     if ((!imageBase64 || imageBase64.length < 50) && samplePath) {
       try {
-        const fullPath = path.resolve('.' + samplePath);
-        if (fs.existsSync(fullPath)) {
-          const buffer = fs.readFileSync(fullPath);
-          imageBase64 = buffer.toString('base64');
+        const baseName = path.basename(samplePath);
+        const candidatePaths = [
+          path.resolve('.' + samplePath),
+          path.resolve(__dirname, '.' + samplePath),
+          path.resolve(__dirname, 'public/assets/images', baseName),
+          path.resolve(__dirname, 'src/assets/images', baseName),
+          path.resolve(__dirname, 'dist/assets/images', baseName),
+        ];
+        for (const candidate of candidatePaths) {
+          if (fs.existsSync(candidate)) {
+            const buffer = fs.readFileSync(candidate);
+            imageBase64 = buffer.toString('base64');
+            break;
+          }
         }
       } catch (e) {
         console.warn('Could not read samplePath for Gemini vision:', e);
@@ -915,7 +940,12 @@ app.post('/api/execute-pipeline', async (req: Request, res: Response) => {
       rationale: 'Automated Cloudinary transformation matching target viewport specifications.',
     };
 
-    const cloudinaryUrl = buildCloudinaryTransformationUrl(asset.publicId, def.trans, def.format);
+    const cloudinaryUrl = buildCloudinaryTransformationUrl(
+      asset.publicId,
+      def.trans,
+      def.format,
+      asset.resourceType
+    );
     const renderUrl = (!asset.isDemo && isCloudinaryConfigured && cloudinaryAuthStatus === 'verified')
       ? cloudinaryUrl
       : asset.originalUrl;

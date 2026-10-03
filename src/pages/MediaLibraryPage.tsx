@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { MediaAsset, PageTab } from '../types/pipeline';
 import { formatBytes } from '../services/api';
+import { SmartMediaViewer } from '../components/common/SmartMediaViewer';
 
 interface MediaLibraryPageProps {
   assets: MediaAsset[];
@@ -134,11 +135,15 @@ export const MediaLibraryPage: React.FC<MediaLibraryPageProps> = ({
               className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col justify-between hover:border-slate-700 transition-all group"
             >
               <div className="relative aspect-video w-full bg-slate-950 flex items-center justify-center p-3 border-b border-slate-800/80">
-                <img
+                <SmartMediaViewer
                   src={asset.originalUrl}
                   alt={asset.name}
+                  fallbackSrc={`/assets/images/${asset.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`}
+                  resourceType={asset.resourceType}
+                  format={asset.format}
+                  autoPlay={false}
+                  controls={true}
                   className="max-h-full max-w-full object-contain filter group-hover:scale-105 transition-transform"
-                  referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-slate-950/80 text-[10px] font-mono text-slate-300 border border-slate-800">
                   {asset.format.toUpperCase()}

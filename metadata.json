@@ -1,0 +1,6 @@
+{
+  "name": "MediaFlow AI",
+  "description": "One Upload. Intelligent Pipeline. Every Channel Ready. Autonomous media processing platform powered by Cloudinary and Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -68,7 +68,7 @@ export const ArchitecturePage: React.FC = () => {
     },
     gemini: {
       id: 'gemini',
-      title: 'Google Gemini 3.8 Flash',
+      title: 'Google Gemini 3.1 Flash / Flash-Lite',
       role: 'Autonomous Semantic Reasoning & Intent Architect',
       tech: '@google/genai TypeScript SDK (Server-Side)',
       responsibilities: [
@@ -211,10 +211,10 @@ export const ArchitecturePage: React.FC = () => {
               >
                 <div className="flex items-center justify-center gap-2 text-xs font-bold text-purple-300">
                   <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>GEMINI 3.8 FLASH</span>
+                  <span>GOOGLE GEMINI AI</span>
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono mt-1">
-                  Semantic Reasoning & Pipeline Plan
+                  Gemini 3.1 Flash · Semantic Reasoning
                 </div>
               </button>
             </div>
